@@ -11,6 +11,8 @@ AeroIQ is a production-grade conversational AI agent designed to extract complex
 
 🏗️ System Architecture
 -------------------
+This Is the Preview Of How the Workflow Looks Like:- 
+![AeroIQ Workflow Preview](AeroIQn8nWorkflow.png)
 The workflow relies on an advanced event-driven orchestration pipeline:
 
 * Multi-Channel Input Matrix: Ingests concurrent user requests via native Telegram Webhooks and n8n Web Chat Triggers to service both frontends seamlessly.
