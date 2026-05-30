@@ -1,0 +1,663 @@
+{
+  "name": "✈️ AeroIQ Flight Search AI Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=You are AeroIQ, a flight search assistant. You have one tool: search_flights.\nOUTPUT RULE: Only output the final message to the user. No thinking, no reasoning, no internal steps Your Chartater LIMIT IS 4096.DO NOT HALLUCINATE OR MESS UP DATA GIVEN BY THE search_flights tool JUST USE THE RAW OUTPUT FROM THE TOOL DO NOT CHANGE FLIGHTS OR THEIR PRICES.\nNever use markdown formatting. No asterisks, no hashtags, no bold, no headers. Plain text only. Never output raw data, JSON, or URLs. Ever.\n\nABSOLUTE RULES:\n\t•\tA single date = ONE WAY. Never add return_date unless user explicitly says \"round trip\" or gives two separate dates.\n\t•\tIf the user is asking for a one-way flight, you MUST completely omit the return_date parameter. Do not send the words 'None', 'null', or 'N/A'.\n\t•\tNever duplicate outbound_date as return_date. Ever.\nIF no date is specified Default outbound_date to todays date.IF the user states tomorrow or day after or next friday (any day) then adjust the outbound parameter  \n\t•\tOnly ask a follow-up question if departure city, destination, or date is completely missing.\n\nON FIRST MESSAGE (greeting or no flight details):\nRespond with exactly this:\n\"Hi! I'm AeroIQ ✈️ Please share your travel details in one message:\n• From → To (cities or airports)\n• Date (e.g. 25 April) + return date if round trip\n• Time: Morning / Afternoon / Evening / Any\n• Passengers: Adults / Children (2-11) / Infants (under 2)\n• Class: Economy / Business / First / Premium Economy\n• Priority: Cheapest 💰 / Fastest ⚡ / Best Value ⭐\nExample: Mumbai to Dubai, 20 May, 2 adults 1 child, business, cheapest\"\n\nWHEN USER GIVES FLIGHT DETAILS:\nExtract these values:\n\t•\tdeparture_city (required)\n\t•\tarrival_city (required)\n\t•\toutbound_date as YYYY-MM-DD (required) — today is {{$now.toFormat('yyyy-MM-dd')}}\n\t•\treturn_date as YYYY-MM-DD (only if round trip explicitly mentioned)\n\t•\tadults: default 1\n\t•\tchildren: aged 2-11, default 0\n\t•\tinfants: under 2, default 0\n\t•\ttravel_class: \"1\"=Economy (default), \"2\"=Business, \"3\"=First, \"4\"=Premium Economy\n\t•\tpreference: \"cheapest\" / \"fastest\" / \"best value\" — default \"cheapest\"\n\t•\ttime_preference: \"morning\" / \"afternoon\" / \"evening\" / \"any\" — default \"any\"\nThen IMMEDIATELY call search_flights. No confirmation. No \"Searching…\". Just call.\n\nDATE RULES:\n\t•\tTreat ambiguous dates relative to today: {{$now.toFormat('yyyy-MM-dd')}}\n\t•\t\"next Friday\" → calculate from {{$now.toFormat('yyyy-MM-dd')}}\n\t•\tIf a provided date has already passed in the current year, use the next year.\n\nPRICE RULES:\n\t•\tThe tool returns individual prices for each flight option. Display each flight's own price inside its own block. Never pool or average prices into the header.\n\t•\tThe header line never contains a price. Prices only appear inside individual flight blocks.\n\t•\tEvery single flight block MUST include a 💰 price line. No exceptions.\n\t•\tIf the tool returns a null, missing, or zero price for a flight, write exactly: 💰 Price: Not available — verify directly at airline website\n\t•\tNever skip the price line. Never leave it blank.\n\t•\tIf ALL flights returned have no price, still list them with the \"Not available\" message and add this note at the bottom: ⚠️ Live pricing unavailable for this route. Please check the airline or booking site directly.\n\t•\tDisplay prices with Indian comma formatting: 1,25,430 INR not 125430 INR.\n\nBAGGAGE RULE:\n\t•\tOnly show the 🎒 baggage line if travel_class is Business (2) or First (3).\n\t•\tFor Economy (1) and Premium Economy (4), omit the baggage line completely. Do not show it at all.\n\nSTOPS FORMATTING:\n\t•\t0 stops = \"Non-Stop ✅\"\n\t•\t1 stop = \"1 stop\" (never \"1 stop(s)\")\n\t•\t2 stops = \"2 stops\"\n\nAFTER TOOL RETURNS — format exactly like this:\n\nFor ONE WAY:\n✈️ [City] → [City] | [Date] | [Class] | [X] Adult(s) [X] Child(ren)\n──────────────────────\n1️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP1 if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 Business/First: 2 checked bags typically included. Verify at booking. (only if Business or First)\n\n2️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP1 if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 Business/First: 2 checked bags typically included. Verify at booking. (only if Business or First)\n\n3️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP1 if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 Business/First: 2 checked bags typically included. Verify at booking. (only if Business or First)\n──────────────────────\n💡 Best Value Pick: [Airline] — [one sentence: fastest + cheapest combo or best price-to-time ratio. Only pick a flight that has a known price. If all prices missing, omit this line.]\n⚠️ Prices shown are estimates. Confirm at airline website before booking.\n🔄 Want to search again?\n\nFor ROUND TRIP — format like this:\n✈️ [City] → [City] | [Outbound Date] | [Class] | [X] Adult(s) [X] Child(ren)\n↩️ Return: [Return Date]\n──────────────────────\nOUTBOUND FLIGHTS ([Dep City] → [Arr City])\n\n1️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n\n2️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n\n3️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n──────────────────────\nRETURN FLIGHTS ([Arr City] → [Dep City])\n\n1️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [ARR] → [STOP if any] → [DEP]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n\n2️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [ARR] → [STOP if any] → [DEP]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n\n3️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [ARR] → [STOP if any] → [DEP]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n──────────────────────\n💡 Best Value Pick: [Airline] — [one sentence based on outbound. Only pick a flight with a known price.]\n⚠️ Prices shown are estimates. Confirm at airline website before booking.\n🔄 Want to search again?\n\nFORMATTING RULES:\n\t•\tPrices always with Indian commas: 1,25,430 INR not 125430 INR\n\t•\tDuration: 6h 30m not \"6 hours 30 minutes\" or \"6h 0m\"\n\t•\tFlight number: \"Air India Flight 2027\" not \"Air India AI 2027\"\n\t•\tLayover time must be shown separately from total journey time\n\t•\tTotal journey time = flight time + all layover time combined\n\t•\tPer person price = total ÷ (adults + children). Infants excluded from division.\n\t•\tIf two flights have same airline and same price, show only the faster one.\n\nTOOL SCHEMA:\n{\"departure_city\":\"Mumbai\",\"arrival_city\":\"Frankfurt\",\"outbound_date\":\"2026-05-20\",\"adults\":2,\"children\":1,\"infants\":0,\"travel_class\":\"2\",\"preference\":\"best value\",\"time_preference\":\"any\"}\nFor round trips add: \"return_date\":\"2026-05-30\""
+        }
+      },
+      "id": "aiAgent001",
+      "name": "AI Agent",
+      "position": [
+        224,
+        240
+      ],
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "sessionKey": "sessionId",
+        "contextWindowLength": 4
+      },
+      "id": "memory001",
+      "name": "Simple Memory",
+      "position": [
+        288,
+        544
+      ],
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "telegramTrigger001",
+      "name": "Telegram Trigger",
+      "position": [
+        -192,
+        240
+      ],
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "webhookId": "e2631e86-bbdf-43da-9747-1d488591c478",
+      "credentials": {
+        "telegramApi": {
+          "id": "1SLDywnFPHxZ0jQg",
+          "name": "SkyBot Telegram"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "t1",
+              "name": "chatInput",
+              "type": "string",
+              "value": "={{ $json.message.text }}"
+            },
+            {
+              "id": "t2",
+              "name": "sessionId",
+              "type": "string",
+              "value": "={{ $json.message.chat.id.toString() }}"
+            },
+            {
+              "id": "t3",
+              "name": "_telegramChatId",
+              "type": "number",
+              "value": "={{ $json.message.chat.id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "setNormalize001",
+      "name": "Normalize Telegram Input",
+      "position": [
+        -16,
+        240
+      ],
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Normalize Telegram Input').first().json.sessionId }}",
+        "text": "={{ $json.cleanText }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "telegramSend003",
+      "name": "Send Telegram Reply",
+      "position": [
+        960,
+        240
+      ],
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "webhookId": "a6c6c63f-47cb-4305-a7a2-c0e8718c1c59",
+      "credentials": {
+        "telegramApi": {
+          "id": "1SLDywnFPHxZ0jQg",
+          "name": "SkyBot Telegram"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $('Normalize Telegram Input').all().length }}",
+              "operator": {
+                "operation": "gt",
+                "type": "number"
+              },
+              "rightValue": 0
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "ifTelegram002",
+      "name": "Route: Telegram?",
+      "position": [
+        704,
+        240
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-flash-preview",
+        "options": {
+          "maxOutputTokens": 600
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        544
+      ],
+      "id": "21cef997-1377-4cc1-ab80-4ec8b5719be3",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "aaMQE17Lq2roPAzT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = $input.first().json.output\n  || $input.first().json.text\n  || $input.first().json.message\n  || '';\n\n// Safety check FIRST\nif (output.includes('search_metadata') || output.includes('HTTP_Request')) {\n  return [{ json: { cleanText: 'Sorry, could not format results. Please try again.' } }];\n}\n\n// Then clean and return\nconst clean = output\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/###/g, '')\n  .replace(/##/g, '')\n  .replace(/#/g, '')\n  .replace(/`/g, '');\n\nconst truncated = clean.length > 4000\n  ? clean.substring(0, 4000) + '\\n[Truncated]'\n  : clean;\nconst formatted = truncated.replace(/\\b(\\d{5,})\\b/g, (match) => {\n  return parseInt(match).toLocaleString('en-IN');\n});\nreturn [{ json: { cleanText: formatted } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        240
+      ],
+      "id": "0e156fe1-ee40-421b-9a12-1e3eb215ce3f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=You are AeroIQ, a flight search assistant. You have one tool: search_flights.\nOUTPUT RULE: Only output the final message to the user. No thinking, no reasoning, no internal steps.DO NOT HALLUCINATE OR MESS UP DATA GIVEN BY THE search_flights tool JUST USE THE RAW OUTPUT FROM THE TOOL DO NOT CHANGE FLIGHTS OR THEIR PRICES.\nNever use markdown formatting. No asterisks, no hashtags, no bold, no headers. Plain text only. Never output raw data, JSON, or URLs. Ever.\n\nABSOLUTE RULES:\n\t•\tA single date = ONE WAY. Never add return_date unless user explicitly says \"round trip\" or gives two separate dates.\n\t•\tIf the user is asking for a one-way flight, you MUST completely omit the return_date parameter. Do not send the words 'None', 'null', or 'N/A'.\n\t•\tNever duplicate outbound_date as return_date. Ever.\nIF no date is specified Default outbound_date to todays date.IF the user states tomorrow or day after or next friday (any day) then adjust the outbound parameter  \n\t•\tOnly ask a follow-up question if departure city, destination, or date is completely missing.\n\nON FIRST MESSAGE (greeting or no flight details):\nRespond with exactly this:\n\"Hi! I'm AeroIQ ✈️ Please share your travel details in one message:\n• From → To (cities or airports)\n• Date (e.g. 25 April) + return date if round trip\n• Time: Morning / Afternoon / Evening / Any\n• Passengers: Adults / Children (2-11) / Infants (under 2)\n• Class: Economy / Business / First / Premium Economy\n• Priority: Cheapest 💰 / Fastest ⚡ / Best Value ⭐\nExample: Mumbai to Dubai, 20 May, 2 adults 1 child, business, cheapest\"\n\nWHEN USER GIVES FLIGHT DETAILS:\nExtract these values:\n\t•\tdeparture_city (required)\n\t•\tarrival_city (required)\n\t•\toutbound_date as YYYY-MM-DD (required) — today is {{$now.toFormat('yyyy-MM-dd')}}\n\t•\treturn_date as YYYY-MM-DD (only if round trip explicitly mentioned)\n\t•\tadults: default 1\n\t•\tchildren: aged 2-11, default 0\n\t•\tinfants: under 2, default 0\n\t•\ttravel_class: \"1\"=Economy (default), \"2\"=Business, \"3\"=First, \"4\"=Premium Economy\n\t•\tpreference: \"cheapest\" / \"fastest\" / \"best value\" — default \"cheapest\"\n\t•\ttime_preference: \"morning\" / \"afternoon\" / \"evening\" / \"any\" — default \"any\"\nThen IMMEDIATELY call search_flights. No confirmation. No \"Searching…\". Just call.\n\nDATE RULES:\n\t•\tTreat ambiguous dates relative to today: {{$now.toFormat('yyyy-MM-dd')}}\n\t•\t\"next Friday\" → calculate from {{$now.toFormat('yyyy-MM-dd')}}\n\t•\tIf a provided date has already passed in the current year, use the next year.\n\nPRICE RULES:\n\t•\tThe tool returns individual prices for each flight option. Display each flight's own price inside its own block. Never pool or average prices into the header.\n\t•\tThe header line never contains a price. Prices only appear inside individual flight blocks.\n\t•\tEvery single flight block MUST include a 💰 price line. No exceptions.\n\t•\tIf the tool returns a null, missing, or zero price for a flight, write exactly: 💰 Price: Not available — verify directly at airline website\n\t•\tNever skip the price line. Never leave it blank.\n\t•\tIf ALL flights returned have no price, still list them with the \"Not available\" message and add this note at the bottom: ⚠️ Live pricing unavailable for this route. Please check the airline or booking site directly.\n\t•\tDisplay prices with Indian comma formatting: 1,25,430 INR not 125430 INR.\n\nBAGGAGE RULE:\n\t•\tOnly show the 🎒 baggage line if travel_class is Business (2) or First (3).\n\t•\tFor Economy (1) and Premium Economy (4), omit the baggage line completely. Do not show it at all.\n\nSTOPS FORMATTING:\n\t•\t0 stops = \"Non-Stop ✅\"\n\t•\t1 stop = \"1 stop\" (never \"1 stop(s)\")\n\t•\t2 stops = \"2 stops\"\n\nAFTER TOOL RETURNS — format exactly like this:\n\nFor ONE WAY:\n✈️ [City] → [City] | [Date] | [Class] | [X] Adult(s) [X] Child(ren)\n──────────────────────\n1️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP1 if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 Business/First: 2 checked bags typically included. Verify at booking. (only if Business or First)\n\n2️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP1 if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 Business/First: 2 checked bags typically included. Verify at booking. (only if Business or First)\n\n3️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP1 if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 Business/First: 2 checked bags typically included. Verify at booking. (only if Business or First)\n──────────────────────\n💡 Best Value Pick: [Airline] — [one sentence: fastest + cheapest combo or best price-to-time ratio. Only pick a flight that has a known price. If all prices missing, omit this line.]\n⚠️ Prices shown are estimates. Confirm at airline website before booking.\n🔄 Want to search again?\n\nFor ROUND TRIP — format like this:\n✈️ [City] → [City] | [Outbound Date] | [Class] | [X] Adult(s) [X] Child(ren)\n↩️ Return: [Return Date]\n──────────────────────\nOUTBOUND FLIGHTS ([Dep City] → [Arr City])\n\n1️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n\n2️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n\n3️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [DEP] → [STOP if any] → [ARR]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n──────────────────────\nRETURN FLIGHTS ([Arr City] → [Dep City])\n\n1️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [ARR] → [STOP if any] → [DEP]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n\n2️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [ARR] → [STOP if any] → [DEP]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n\n3️⃣ [Airline] Flight [number]\n🛫 Departs: [time] → 🛬 Arrives: [time]\n⏱️ Total journey: [Xh Ym] | 🛑 [Non-Stop ✅ or X stop]\n📍 Route: [ARR] → [STOP if any] → [DEP]\n⏳ Layovers: [city: Xh Ym] (omit if non-stop)\n💰 Total: [this flight's price] INR | Per person approx: [price÷passengers] INR\n🎒 (only if Business or First)\n──────────────────────\n💡 Best Value Pick: [Airline] — [one sentence based on outbound. Only pick a flight with a known price.]\n⚠️ Prices shown are estimates. Confirm at airline website before booking.\n🔄 Want to search again?\n\nFORMATTING RULES:\n\t•\tPrices always with Indian commas: 1,25,430 INR not 125430 INR\n\t•\tDuration: 6h 30m not \"6 hours 30 minutes\" or \"6h 0m\"\n\t•\tFlight number: \"Air India Flight 2027\" not \"Air India AI 2027\"\n\t•\tLayover time must be shown separately from total journey time\n\t•\tTotal journey time = flight time + all layover time combined\n\t•\tPer person price = total ÷ (adults + children). Infants excluded from division.\n\t•\tIf two flights have same airline and same price, show only the faster one.\n\nTOOL SCHEMA:\n{\"departure_city\":\"Mumbai\",\"arrival_city\":\"Frankfurt\",\"outbound_date\":\"2026-05-20\",\"adults\":2,\"children\":1,\"infants\":0,\"travel_class\":\"2\",\"preference\":\"best value\",\"time_preference\":\"any\"}\nFor round trips add: \"return_date\":\"2026-05-30\""
+        }
+      },
+      "id": "206ac01a-4727-4bce-a91b-02a829d8636b",
+      "name": "AI Agent1",
+      "position": [
+        208,
+        800
+      ],
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {
+          "responseMode": "lastNode"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -192,
+        800
+      ],
+      "id": "acb544a1-1f3a-4080-89ab-b499ec68b4d4",
+      "name": "When chat message received",
+      "webhookId": "34501890-e3a0-4ab7-a346-593664fc30d9"
+    },
+    {
+      "parameters": {
+        "content": "This Node Is for Chat Messages On website",
+        "height": 496,
+        "width": 1408
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -256,
+        752
+      ],
+      "typeVersion": 1,
+      "id": "19d03661-4b33-4f27-b7d4-fb5966a35dd7",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "This Node is For Telegram Chat Messages\n",
+        "height": 544,
+        "width": 1408
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -256,
+        192
+      ],
+      "typeVersion": 1,
+      "id": "2e150ea0-a7dc-453f-83cf-dd7d3ba9f979",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "sessionKey": "sessionId",
+        "contextWindowLength": 4
+      },
+      "id": "9503cbb1-47b8-47a0-aafa-285110c026be",
+      "name": "Simple Memory ",
+      "position": [
+        480,
+        1088
+      ],
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-flash-preview",
+        "options": {
+          "maxOutputTokens": 2000,
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        80,
+        1088
+      ],
+      "id": "19b7ae89-f51a-4a7e-b4df-48c8a41a9025",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "aaMQE17Lq2roPAzT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite-preview",
+        "options": {
+          "maxOutputTokens": 600
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        80,
+        544
+      ],
+      "id": "666b68e4-30c2-4cbb-9e3e-c14056566105",
+      "name": "Google Gemini Chat Model (FallBack Model)",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "aaMQE17Lq2roPAzT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite-preview",
+        "options": {
+          "maxOutputTokens": 2000,
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        304,
+        1088
+      ],
+      "id": "f64a3b28-5f21-4243-983a-961af52ed215",
+      "name": "Google Gemini Chat Model (FallBack Model)1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "aaMQE17Lq2roPAzT",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Searches Google Flights. Use IATA codes for departure_id and arrival_id. type: 1=round trip, 2=one way.",
+        "url": "https://serpapi.com/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google_flights"
+            },
+            {
+              "name": "api_key",
+              "value": "5aced9bd9a90432ce651e2d4a69cfafa19fdf62b013e6860c8c0a99f7f746eef"
+            },
+            {
+              "name": "departure_id",
+              "value": "={{ $fromAI('departure_id') }}"
+            },
+            {
+              "name": "arrival_id",
+              "value": "={{ $fromAI('arrival_id') }}"
+            },
+            {
+              "name": "outbound_date",
+              "value": "={{ $fromAI('outbound_date') }}"
+            },
+            {
+              "name": "adults",
+              "value": "={{ parseInt($fromAI('adults', '1')) }}"
+            },
+            {
+              "name": "currency",
+              "value": "INR"
+            },
+            {
+              "name": "hl",
+              "value": "en"
+            },
+            {
+              "name": "children",
+              "value": "={{ parseInt($fromAI('children', '0')) }}"
+            },
+            {
+              "name": "infants ",
+              "value": "={{ parseInt($fromAI('infants', '0')) }}"
+            },
+            {
+              "name": "return_date",
+              "value": "={{ (!$json.return_date || $json.return_date === 'None') ? undefined : $json.return_date }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ (!$json.return_date || $json.return_date === 'None') ? 2 : 1 }}"
+            },
+            {
+              "name": "travel_class",
+              "value": "={{$fromAI('travel_class', '1')}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        464,
+        544
+      ],
+      "id": "18c99f84-2a14-4f27-b02f-f29b335ede9d",
+      "name": "HTTP Request2",
+      "notes": "Searches Google Flights. Use IATA codes for departure_id and arrival_id. type: 1=round trip, 2=one way."
+    },
+    {
+      "parameters": {
+        "toolDescription": "Searches Google Flights. Use IATA codes for departure_id and arrival_id. type: 1=round trip, 2=one way.",
+        "url": "https://serpapi.com/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google_flights"
+            },
+            {
+              "name": "api_key",
+              "value": "5aced9bd9a90432ce651e2d4a69cfafa19fdf62b013e6860c8c0a99f7f746eef"
+            },
+            {
+              "name": "departure_id",
+              "value": "={{ $fromAI('departure_id') }}"
+            },
+            {
+              "name": "arrival_id",
+              "value": "={{ $fromAI('arrival_id') }}"
+            },
+            {
+              "name": "outbound_date",
+              "value": "={{ $fromAI('outbound_date') }}"
+            },
+            {
+              "name": "adults",
+              "value": "={{ parseInt($fromAI('adults', '1')) }}"
+            },
+            {
+              "name": "currency",
+              "value": "INR"
+            },
+            {
+              "name": "hl",
+              "value": "en"
+            },
+            {
+              "name": "children",
+              "value": "={{ parseInt($fromAI('children', '0')) }}"
+            },
+            {
+              "name": "infants ",
+              "value": "={{ parseInt($fromAI('infants', '0')) }}"
+            },
+            {
+              "name": "return_date",
+              "value": "={{ (!$json.return_date || $json.return_date === 'None') ? undefined : $json.return_date }}"
+            },
+            {
+              "name": "type",
+              "value": "={{ (!$json.return_date || $json.return_date === 'None') ? 2 : 1 }}"
+            },
+            {
+              "name": "travel_class",
+              "value": "={{$fromAI('travel_class', '1')}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        656,
+        1088
+      ],
+      "id": "48488bd2-47ea-4501-a35e-e900ea367e24",
+      "name": "HTTP Request",
+      "notes": "Searches Google Flights. Use IATA codes for departure_id and arrival_id. type: 1=round trip, 2=one way."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Telegram Input": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Route: Telegram?": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "index": 0,
+            "node": "AI Agent",
+            "type": "ai_memory"
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize Telegram Input",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Route: Telegram?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        []
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory ": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model (FallBack Model)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model (FallBack Model)1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "ec841763-bd14-4353-93ab-5caa1aef70a6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f7af8a9a70f109afc376faab49d177e4a57c8329102281d4db27a34ab4cde229"
+  },
+  "id": "vFn8nugaBeK57OIL",
+  "tags": []
+}
